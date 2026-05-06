@@ -5,22 +5,28 @@ import api from '../services/api';
 export default function DashboardAdmin() {
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/reports/dashboard').then(r => setStats(r.data));
-    api.get('/usage/history?status=closed').then(r => setRecent(r.data.slice(0, 10)));
+    api.get('/reports/dashboard')
+      .then(r => setStats(r.data))
+      .catch(e => setError(e.response?.data?.error || 'Error al cargar dashboard'));
+    api.get('/usage/history?status=closed')
+      .then(r => setRecent(r.data.slice(0, 10)))
+      .catch(() => {});
   }, []);
+
+  if (error) return <div style={{ color: 'var(--red)', padding: 20 }}>{error}</div>;
 
   return (
     <div>
       <div className="page-header"><h1 className="page-title">Dashboard</h1></div>
-
       <div className="stat-grid">
         {[
-          { label: 'Disponibles', value: stats?.vehicles?.available || 0, color: 'var(--green)', icon: <Truck size={18} color="#22c55e" /> },
-          { label: 'En uso ahora', value: stats?.vehicles?.in_use || 0, color: 'var(--yellow)', icon: <Activity size={18} color="#eab308" /> },
-          { label: 'Pilotos', value: stats?.users?.pilots || 0, color: 'var(--text)', icon: <Users size={18} color="#94a3b8" /> },
-          { label: 'Alertas pendientes', value: stats?.unread_alerts || 0, color: 'var(--red)', icon: <AlertTriangle size={18} color="#ef4444" /> },
+          { label: 'Disponibles', value: stats?.vehicles?.available ?? '—', color: 'var(--green)', icon: <Truck size={18} color="var(--green)" /> },
+          { label: 'En uso ahora', value: stats?.vehicles?.in_use ?? '—', color: 'var(--yellow)', icon: <Activity size={18} color="var(--yellow)" /> },
+          { label: 'Pilotos', value: stats?.users?.pilots ?? '—', color: 'var(--text)', icon: <Users size={18} color="var(--text2)" /> },
+          { label: 'Alertas', value: stats?.unread_alerts ?? '—', color: 'var(--red)', icon: <AlertTriangle size={18} color="var(--red)" /> },
         ].map(s => (
           <div key={s.label} className="stat-card">
             <div style={{ display: 'flex', justifyContent: 'space-between' }}><div className="stat-label">{s.label}</div>{s.icon}</div>
@@ -28,12 +34,11 @@ export default function DashboardAdmin() {
           </div>
         ))}
       </div>
-
       <div className="card">
         <div style={{ fontWeight: 600, marginBottom: 14 }}>Últimos usos registrados</div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Piloto</th><th>Placa</th><th>Ruta</th><th>KM recorridos</th><th>Fecha</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Piloto</th><th>Placa</th><th>Ruta</th><th>KM</th><th>Fecha</th><th>Estado</th></tr></thead>
             <tbody>
               {recent.map(u => (
                 <tr key={u.id}>

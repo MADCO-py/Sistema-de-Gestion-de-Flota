@@ -4,11 +4,15 @@ const getAlerts = async (req, res) => {
   try {
     let query, values;
     if (req.user.role === 'PILOT') {
-      query = `SELECT a.*, v.plate, v.type FROM alerts a LEFT JOIN vehicles v ON v.id=a.vehicle_id
-               WHERE (a.user_id=$1 OR a.user_id IS NULL) AND a.is_read=false ORDER BY a.created_at DESC LIMIT 50`;
+      query = `SELECT a.*, COALESCE(v.plate,'') as plate, COALESCE(v.type,'') as type
+               FROM alerts a LEFT JOIN vehicles v ON v.id=a.vehicle_id
+               WHERE (a.user_id=$1 OR a.user_id IS NULL)
+               ORDER BY a.created_at DESC LIMIT 50`;
       values = [req.user.id];
     } else {
-      query = `SELECT a.*, v.plate, v.type, u.full_name as user_name FROM alerts a
+      query = `SELECT a.*, COALESCE(v.plate,'') as plate, COALESCE(v.type,'') as type,
+               COALESCE(u.full_name,'') as user_name
+               FROM alerts a
                LEFT JOIN vehicles v ON v.id=a.vehicle_id
                LEFT JOIN users u ON u.id=a.user_id
                ORDER BY a.created_at DESC LIMIT 100`;
@@ -17,6 +21,7 @@ const getAlerts = async (req, res) => {
     const { rows } = await pool.query(query, values);
     res.json(rows);
   } catch (err) {
+    console.error('getAlerts error:', err.message);
     res.status(500).json({ error: 'Error al obtener alertas' });
   }
 };
@@ -24,12 +29,14 @@ const getAlerts = async (req, res) => {
 const getUnreadCount = async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT COUNT(*) as count FROM alerts WHERE is_read=false AND (user_id=$1 OR user_id IS NULL)`,
+      `SELECT COUNT(*)::int as count FROM alerts
+       WHERE is_read=false AND (user_id=$1 OR user_id IS NULL)`,
       [req.user.id]
     );
-    res.json({ count: parseInt(rows[0].count) });
+    res.json({ count: rows[0].count });
   } catch (err) {
-    res.status(500).json({ error: 'Error' });
+    console.error('getUnreadCount error:', err.message);
+    res.status(500).json({ error: 'Error al obtener conteo' });
   }
 };
 

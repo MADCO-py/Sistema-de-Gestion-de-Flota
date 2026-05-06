@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, UserCheck, UserX, Search } from 'lucide-react';
+import { Plus, Pencil, UserCheck, UserX, Search, Phone, CreditCard } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const ROLE_LABELS = { HOST: 'Host', ADMIN: 'Admin', PILOT: 'Piloto' };
 const ROLE_COLORS = { HOST: 'badge-red', ADMIN: 'badge-blue', PILOT: 'badge-green' };
-const emptyForm = { username: '', password: '', full_name: '', email: '', role: 'PILOT' };
+const emptyForm = { username: '', password: '', full_name: '', dpi: '', phone: '', role: 'PILOT' };
 
 export default function Users() {
   const { user: me } = useAuth();
@@ -21,7 +21,7 @@ export default function Users() {
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setForm(emptyForm); setError(''); setModal('create'); };
-  const openEdit = (u) => { setForm({ username: u.username, password: '', full_name: u.full_name, email: u.email||'', role: u.role }); setError(''); setModal(u); };
+  const openEdit = (u) => { setForm({ username: u.username, password: '', full_name: u.full_name, dpi: u.dpi||'', phone: u.phone||'', role: u.role }); setError(''); setModal(u); };
 
   const handleSave = async (e) => {
     e.preventDefault(); setSaving(true); setError('');
@@ -44,7 +44,8 @@ export default function Users() {
   const filtered = users.filter(u =>
     u.full_name.toLowerCase().includes(search.toLowerCase()) ||
     u.username.toLowerCase().includes(search.toLowerCase()) ||
-    (u.email||'').toLowerCase().includes(search.toLowerCase())
+    (u.dpi||'').includes(search) ||
+    (u.phone||'').includes(search)
   );
 
   return (
@@ -54,30 +55,40 @@ export default function Users() {
         <button className="btn-primary" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Plus size={15} /> Nuevo usuario</button>
       </div>
 
-      <div style={{ marginBottom: 16, position: 'relative', maxWidth: 320 }}>
+      <div style={{ marginBottom: 16, position: 'relative', maxWidth: 340 }}>
         <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
-        <input placeholder="Buscar nombre, usuario, email..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
+        <input placeholder="Buscar nombre, DPI, teléfono..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
       </div>
 
       {loading ? <div className="spinner" /> : (
         <div className="table-wrap card" style={{ padding: 0 }}>
           <table>
-            <thead><tr><th>Nombre</th><th>Usuario</th><th>Email</th><th>Rol</th><th>Estado</th><th>Desde</th><th></th></tr></thead>
+            <thead>
+              <tr><th>Nombre</th><th>Usuario</th><th>DPI</th><th>Teléfono</th><th>Rol</th><th>Estado</th><th></th></tr>
+            </thead>
             <tbody>
               {filtered.map(u => (
                 <tr key={u.id} style={{ opacity: u.is_active ? 1 : 0.5 }}>
                   <td style={{ color: 'var(--text)', fontWeight: 500 }}>{u.full_name}</td>
                   <td style={{ fontFamily: 'monospace', color: 'var(--text3)', fontSize: 13 }}>{u.username}</td>
-                  <td>{u.email || '—'}</td>
+                  <td>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontFamily: 'monospace', color: 'var(--text2)' }}>
+                      <CreditCard size={11} color="var(--text3)" />{u.dpi || '—'}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--text2)' }}>
+                      <Phone size={11} color="var(--text3)" />{u.phone || '—'}
+                    </span>
+                  </td>
                   <td><span className={`badge ${ROLE_COLORS[u.role]}`}>{ROLE_LABELS[u.role]}</span></td>
                   <td><span className={`badge ${u.is_active ? 'badge-green' : 'badge-gray'}`}>{u.is_active ? 'Activo' : 'Inactivo'}</span></td>
-                  <td>{new Date(u.created_at).toLocaleDateString('es')}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {u.id !== me?.id && <button className="btn-icon" onClick={() => openEdit(u)} title="Editar"><Pencil size={14} /></button>}
                       {u.id !== me?.id && me?.role === 'HOST' && (
                         <button className="btn-icon" onClick={() => toggleActive(u)} title={u.is_active ? 'Desactivar' : 'Activar'}>
-                          {u.is_active ? <UserX size={14} color="#ef4444" /> : <UserCheck size={14} color="#22c55e" />}
+                          {u.is_active ? <UserX size={14} color="var(--red)" /> : <UserCheck size={14} color="var(--green)" />}
                         </button>
                       )}
                     </div>
@@ -104,9 +115,22 @@ export default function Users() {
                   <label>{modal === 'create' ? 'Contraseña *' : 'Nueva contraseña (opcional)'}</label>
                   <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} required={modal === 'create'} />
                 </div>
-                <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>
+                <div className="form-group"><label>Rol *</label>
+                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value})}>
+                    {allowedRoles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                  </select>
+                </div>
               </div>
-              <div className="form-group"><label>Rol *</label><select value={form.role} onChange={e => setForm({...form, role: e.target.value})}>{allowedRoles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}><CreditCard size={12} /> DPI</label>
+                  <input value={form.dpi} onChange={e => setForm({...form, dpi: e.target.value})} placeholder="1234567890101" maxLength={13} />
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Phone size={12} /> Teléfono</label>
+                  <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="50212345678" />
+                </div>
+              </div>
               {error && <div className="error-msg">{error}</div>}
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setModal(null)}>Cancelar</button>

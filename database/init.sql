@@ -6,6 +6,8 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(100) NOT NULL,
   email VARCHAR(100) UNIQUE,
+  dpi VARCHAR(20),
+  phone VARCHAR(20),
   role VARCHAR(10) NOT NULL CHECK (role IN ('HOST', 'ADMIN', 'PILOT')),
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -41,6 +43,14 @@ CREATE TABLE vehicle_usage (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE usage_photos (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  usage_id UUID NOT NULL REFERENCES vehicle_usage(id),
+  side VARCHAR(20) NOT NULL CHECK (side IN ('front', 'back', 'left', 'right')),
+  filename VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE alerts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id),
@@ -66,26 +76,23 @@ CREATE TABLE system_logs (
 CREATE INDEX idx_vehicle_usage_pilot ON vehicle_usage(pilot_id);
 CREATE INDEX idx_vehicle_usage_vehicle ON vehicle_usage(vehicle_id);
 CREATE INDEX idx_vehicle_usage_status ON vehicle_usage(status);
+CREATE INDEX idx_usage_photos_usage ON usage_photos(usage_id);
 CREATE INDEX idx_alerts_user ON alerts(user_id);
 CREATE INDEX idx_alerts_read ON alerts(is_read);
 CREATE INDEX idx_logs_user ON system_logs(user_id);
-CREATE INDEX idx_logs_created ON system_logs(created_at);
 
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_vehicles_updated_at BEFORE UPDATE ON vehicles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-INSERT INTO users (username, password_hash, full_name, email, role) VALUES
-('host',   '$2b$10$btSz6HbW5aQmngaud6JCl.a12b20oTWKsrif7P.RZnpOS4orUpxn.', 'System Host',  'host@fleetcontrol.com',  'HOST'),
-('admin',  '$2b$10$btSz6HbW5aQmngaud6JCl.a12b20oTWKsrif7P.RZnpOS4orUpxn.', 'Fleet Admin',  'admin@fleetcontrol.com', 'ADMIN'),
-('pilot1', '$2b$10$btSz6HbW5aQmngaud6JCl.a12b20oTWKsrif7P.RZnpOS4orUpxn.', 'Juan García',  'juan@fleetcontrol.com',  'PILOT');
+INSERT INTO users (username, password_hash, full_name, dpi, phone, role) VALUES
+('host',   '$2b$10$btSz6HbW5aQmngaud6JCl.a12b20oTWKsrif7P.RZnpOS4orUpxn.', 'System Host',  '1234567890101', '50299990001', 'HOST'),
+('admin',  '$2b$10$btSz6HbW5aQmngaud6JCl.a12b20oTWKsrif7P.RZnpOS4orUpxn.', 'Fleet Admin',  '1234567890102', '50299990002', 'ADMIN'),
+('pilot1', '$2b$10$btSz6HbW5aQmngaud6JCl.a12b20oTWKsrif7P.RZnpOS4orUpxn.', 'Juan García',  '1234567890103', '50299990003', 'PILOT');
 
 INSERT INTO vehicles (plate, type, brand, model, year, current_km, maintenance_km) VALUES
 ('ABC-123', 'car',        'Toyota',   'Corolla',  2022, 45000, 50000),

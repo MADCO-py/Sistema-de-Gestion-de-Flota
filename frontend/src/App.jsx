@@ -12,6 +12,7 @@ import CheckIn from './pages/CheckIn';
 import History from './pages/History';
 import Reports from './pages/Reports';
 import Logs from './pages/Logs';
+import VehiclePhotos from './pages/VehiclePhotos';
 
 function DashboardRouter() {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ function Layout({ children }) {
   return (
     <div>
       <Navbar />
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
+      <div style={{ maxWidth: 1300, margin: '0 auto', padding: '24px 16px' }}>
         {children}
       </div>
     </div>
@@ -43,6 +44,7 @@ function AppRoutes() {
       <Route path="/history" element={<ProtectedRoute><Layout><History /></Layout></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute roles={['HOST','ADMIN']}><Layout><Reports /></Layout></ProtectedRoute>} />
       <Route path="/logs" element={<ProtectedRoute roles={['HOST']}><Layout><Logs /></Layout></ProtectedRoute>} />
+      <Route path="/vehicle-photos" element={<ProtectedRoute roles={['HOST']}><Layout><VehiclePhotos /></Layout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

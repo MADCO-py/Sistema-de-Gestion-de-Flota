@@ -10,8 +10,6 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-    # Sin "ports" — solo accesible dentro de la red Docker
-    # Si necesitas acceso externo cambia a "5433:5432" para no chocar con Postgres local
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fleetuser -d fleetcontrol"]
       interval: 3s
@@ -35,8 +33,11 @@ services:
       DB_NAME: fleetcontrol
       JWT_SECRET: supersecretjwtkey2024fleetcontrol
       JWT_EXPIRES_IN: 8h
+      UPLOAD_DIR: /app/uploads
     ports:
       - "4000:4000"
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -56,3 +57,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:
