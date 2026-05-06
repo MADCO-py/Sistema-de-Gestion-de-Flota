@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: fleetcontrol_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fleetuser
+      POSTGRES_PASSWORD: fleetpass
+      POSTGRES_DB: fleetcontrol
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # Sin "ports" — solo accesible dentro de la red Docker
+    # Si necesitas acceso externo cambia a "5433:5432" para no chocar con Postgres local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fleetuser -d fleetcontrol"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fleetcontrol_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: fleetuser
+      DB_PASSWORD: fleetpass
+      DB_NAME: fleetcontrol
+      JWT_SECRET: supersecretjwtkey2024fleetcontrol
+      JWT_EXPIRES_IN: 8h
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://localhost:4000/api
+    container_name: fleetcontrol_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
