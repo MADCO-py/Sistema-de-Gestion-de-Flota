@@ -33,11 +33,13 @@ services:
       DB_NAME: fleetcontrol
       JWT_SECRET: supersecretjwtkey2024fleetcontrol
       JWT_EXPIRES_IN: 8h
-      UPLOAD_DIR: /app/uploads
+      # Cloudflare R2
+      R2_ENDPOINT: https://80b3081dfcda42b43a68695299c27109.r2.cloudflarestorage.com
+      R2_ACCESS_KEY_ID: f54dd7bd59e05e0d6cd01a4769bbfcc3
+      R2_SECRET_ACCESS_KEY: 424b0971a1132bf8b71a090ca7804f405a81728417f410a829dcfacb1b7fe991
+      R2_BUCKET: fleetcontrol-fotos
     ports:
       - "4000:4000"
-    volumes:
-      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -57,4 +59,3 @@ services:
 
 volumes:
   pgdata:
-  uploads:

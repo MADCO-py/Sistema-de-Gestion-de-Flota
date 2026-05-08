@@ -1,5 +1,7 @@
 const pool = require('../db');
 const { log } = require('../utils/logger');
+const { uploadToR2, getPhotoUrl } = require('../utils/r2');
+const path = require('path');
 
 const SUSPICIOUS_KM_THRESHOLD = 500;
 
@@ -38,18 +40,13 @@ const checkIn = async (req, res) => {
 const uploadPhotos = async (req, res) => {
   const { usage_id } = req.params;
   try {
-    // req.files es objeto {front:[file], back:[file], left:[file], right:[file]}
     const filesObj = req.files || {};
     const allFiles = [];
     for (const fieldname of Object.keys(filesObj)) {
       const arr = filesObj[fieldname];
-      if (Array.isArray(arr)) {
-        arr.forEach(f => allFiles.push({ fieldname, ...f }));
-      }
+      if (Array.isArray(arr)) arr.forEach(f => allFiles.push({ fieldname, ...f }));
     }
-
-    if (allFiles.length === 0)
-      return res.status(400).json({ error: 'No se recibieron fotos' });
+    if (allFiles.length === 0) return res.status(400).json({ error: 'No se recibieron fotos' });
 
     const usage = await pool.query(
       "SELECT * FROM vehicle_usage WHERE id=$1 AND pilot_id=$2 AND status='active'",
@@ -57,15 +54,21 @@ const uploadPhotos = async (req, res) => {
     );
     if (!usage.rows.length) return res.status(404).json({ error: 'Uso activo no encontrado' });
 
-    // Borrar fotos anteriores de este uso
+    // Borrar fotos anteriores
     await pool.query('DELETE FROM usage_photos WHERE usage_id=$1', [usage_id]);
 
     const inserted = [];
     for (const file of allFiles) {
       const side = file.fieldname;
+      const ext = path.extname(file.originalname) || '.jpg';
+      const r2Key = `${usage_id}_${side}_${Date.now()}${ext}`;
+
+      // Subir a R2
+      await uploadToR2(file.path, r2Key);
+
       const { rows } = await pool.query(
         'INSERT INTO usage_photos (usage_id, side, filename) VALUES ($1,$2,$3) RETURNING *',
-        [usage_id, side, file.filename]
+        [usage_id, side, r2Key]
       );
       inserted.push(rows[0]);
     }
@@ -93,12 +96,10 @@ const checkOut = async (req, res) => {
     if (req.user.role === 'PILOT' && usage.pilot_id !== pilot_id) { await client.query('ROLLBACK'); return res.status(403).json({ error: 'No puedes hacer checkout de este vehículo' }); }
     if (km_end <= usage.km_start) { await client.query('ROLLBACK'); return res.status(400).json({ error: `El km final (${km_end}) debe ser mayor al inicial (${usage.km_start})` }); }
 
-    // Validar 4 fotos para pilotos
     if (req.user.role === 'PILOT') {
       const photosRes = await client.query("SELECT side FROM usage_photos WHERE usage_id=$1", [usage_id]);
       const sides = photosRes.rows.map(p => p.side);
-      const required = ['front', 'back', 'left', 'right'];
-      const missing = required.filter(s => !sides.includes(s));
+      const missing = ['front','back','left','right'].filter(s => !sides.includes(s));
       if (missing.length > 0) {
         await client.query('ROLLBACK');
         const labels = { front:'Frente', back:'Atrás', left:'Izquierda', right:'Derecha' };
@@ -115,23 +116,16 @@ const checkOut = async (req, res) => {
     await client.query("UPDATE vehicles SET status='available', current_km=$1 WHERE id=$2", [km_end, usage.vehicle_id]);
     await client.query('COMMIT');
 
-    // Alertas de mantenimiento
     const vehicleRes = await pool.query('SELECT * FROM vehicles WHERE id=$1', [usage.vehicle_id]);
     const veh = vehicleRes.rows[0];
     const kmToMaint = veh.maintenance_km - veh.current_km;
     if (kmToMaint <= 500) {
-      await pool.query(
-        `INSERT INTO alerts (vehicle_id, type, message) VALUES ($1,'maintenance',$2)`,
-        [veh.id, kmToMaint < 0
-          ? `Vehículo ${veh.plate}: mantenimiento vencido por ${Math.abs(kmToMaint)} km`
-          : `Vehículo ${veh.plate}: faltan ${kmToMaint} km para mantenimiento`]
-      );
+      await pool.query(`INSERT INTO alerts (vehicle_id, type, message) VALUES ($1,'maintenance',$2)`,
+        [veh.id, kmToMaint < 0 ? `Vehículo ${veh.plate}: mantenimiento vencido por ${Math.abs(kmToMaint)} km` : `Vehículo ${veh.plate}: faltan ${kmToMaint} km para mantenimiento`]);
     }
     if (suspicious) {
-      await pool.query(
-        `INSERT INTO alerts (user_id, vehicle_id, usage_id, type, message) VALUES ($1,$2,$3,'suspicious_km',$4)`,
-        [usage.pilot_id, usage.vehicle_id, usage_id, `Kilometraje sospechoso en ${veh.plate}: +${kmDiff} km en un solo uso`]
-      );
+      await pool.query(`INSERT INTO alerts (user_id, vehicle_id, usage_id, type, message) VALUES ($1,$2,$3,'suspicious_km',$4)`,
+        [usage.pilot_id, usage.vehicle_id, usage_id, `Kilometraje sospechoso en ${veh.plate}: +${kmDiff} km en un solo uso`]);
     }
     await log(pilot_id, 'CHECKOUT', 'vehicle_usage', usage_id, { km_end, suspicious }, req.ip);
     res.json({ ...rows[0], km_diff: kmDiff, suspicious });
@@ -164,10 +158,7 @@ const getUsageHistory = async (req, res) => {
        ${where} ORDER BY vu.checkin_at DESC LIMIT 500`, values
     );
     res.json(rows);
-  } catch (err) {
-    console.error('getUsageHistory error:', err.message);
-    res.status(500).json({ error: 'Error al obtener historial' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Error al obtener historial' }); }
 };
 
 const getActiveUsages = async (req, res) => {
@@ -182,10 +173,7 @@ const getActiveUsages = async (req, res) => {
        WHERE vu.status='active' ORDER BY vu.checkin_at`
     );
     res.json(rows);
-  } catch (err) {
-    console.error('getActiveUsages error:', err.message);
-    res.status(500).json({ error: 'Error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Error' }); }
 };
 
 const getMyActiveUsage = async (req, res) => {
@@ -203,10 +191,7 @@ const getMyActiveUsage = async (req, res) => {
        WHERE vu.pilot_id=$1 AND vu.status='active' LIMIT 1`, [req.user.id]
     );
     res.json(rows[0] || null);
-  } catch (err) {
-    console.error('getMyActiveUsage error:', err.message);
-    res.status(500).json({ error: 'Error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Error' }); }
 };
 
 const getUsagePhotos = async (req, res) => {

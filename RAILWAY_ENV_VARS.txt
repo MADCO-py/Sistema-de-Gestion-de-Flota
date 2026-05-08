@@ -1,0 +1,24 @@
+# Variables de entorno para Railway — Backend
+# Copia y pega cada una en Railway > tu servicio backend > Variables
+
+NODE_ENV=production
+PORT=4000
+
+# Base de datos — Railway te da estos valores al crear el PostgreSQL
+# DB_HOST=     (Railway internal host)
+# DB_PORT=5432
+# DB_USER=     (Railway postgres user)
+# DB_PASSWORD= (Railway postgres password)
+# DB_NAME=     (Railway postgres db name)
+
+JWT_SECRET=CambiaEstePorUnStringLargoYAleatorio2024
+JWT_EXPIRES_IN=8h
+
+# Cloudflare R2
+R2_ENDPOINT=https://80b3081dfcda42b43a68695299c27109.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=f54dd7bd59e05e0d6cd01a4769bbfcc3
+R2_SECRET_ACCESS_KEY=424b0971a1132bf8b71a090ca7804f405a81728417f410a829dcfacb1b7fe991
+R2_BUCKET=fleetcontrol-fotos
+
+# Frontend — Variable para Railway
+REACT_APP_API_URL=https://TU-BACKEND-URL.railway.app/api

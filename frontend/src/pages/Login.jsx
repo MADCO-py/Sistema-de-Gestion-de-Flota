@@ -78,17 +78,7 @@ export default function Login() {
             </form>
           </div>
 
-          <div style={{ marginTop: 16, padding: 14, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--text3)' }}>
-            <strong style={{ color: 'var(--text2)' }}>Demo</strong> — contraseña: <code style={{ color: 'var(--accent2)' }}>Admin1234!</code>
-            <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {[['host','HOST'],['admin','ADMIN'],['pilot1','PILOTO']].map(([u, r]) => (
-                <button key={u} type="button" className="btn-secondary btn-sm"
-                  onClick={() => { setUsername(u); setPassword('Admin1234!'); }}>
-                  {u} <span style={{ color: 'var(--text3)', fontSize: 10 }}>({r})</span>
-                </button>
-              ))}
-            </div>
-          </div>
+         
         </div>
       </div>
     </div>

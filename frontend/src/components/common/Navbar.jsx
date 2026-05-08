@@ -3,9 +3,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import AlertBell from './AlertBell';
 import Logo from './Logo';
 import { useState } from 'react';
-import { LayoutDashboard, Truck, Users, ClipboardList, BarChart2, ScrollText, KeyRound, LogOut, Menu, X, Camera } from 'lucide-react';
+import { LayoutDashboard, Truck, Users, ClipboardList, BarChart2, ScrollText, KeyRound, LogOut, Menu, X, Camera, UserCircle } from 'lucide-react';
 
 const navItems = {
+  ADMIN: [
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+    { to: '/vehicles', label: 'Vehículos', icon: Truck },
+    { to: '/users', label: 'Usuarios', icon: Users },
+    { to: '/vehicle-photos', label: 'Fotos', icon: Camera },
+    { to: '/history', label: 'Historial', icon: ClipboardList },
+    { to: '/reports', label: 'Reportes', icon: BarChart2 },
+    { to: '/logs', label: 'Logs', icon: ScrollText },
+  ],
   HOST: [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
     { to: '/vehicles', label: 'Vehículos', icon: Truck },
@@ -15,18 +24,14 @@ const navItems = {
     { to: '/reports', label: 'Reportes', icon: BarChart2 },
     { to: '/logs', label: 'Logs', icon: ScrollText },
   ],
-  ADMIN: [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-    { to: '/users', label: 'Usuarios', icon: Users },
-    { to: '/history', label: 'Historial', icon: ClipboardList },
-    { to: '/reports', label: 'Reportes', icon: BarChart2 },
-  ],
   PILOT: [
     { to: '/', label: 'Inicio', icon: LayoutDashboard, exact: true },
     { to: '/checkin', label: 'Check-in/out', icon: KeyRound },
     { to: '/history', label: 'Mi historial', icon: ClipboardList },
   ],
 };
+
+const ROLE_COLOR = { ADMIN: '#8b5cf6', HOST: '#3b82f6', PILOT: '#22c55e' };
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -62,11 +67,16 @@ export default function Navbar() {
           ))}
         </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <AlertBell />
-          <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Mi perfil */}
+          <button onClick={() => navigate('/profile')} className="btn-icon" title="Mi perfil"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <UserCircle size={18} />
+          </button>
+          <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 13, color: 'var(--text2)' }}>{user?.full_name}</span>
-            <span className="badge badge-red" style={{ fontSize: 10 }}>{user?.role}</span>
+            <span className="badge" style={{ fontSize: 10, background: ROLE_COLOR[user?.role] + '22', color: ROLE_COLOR[user?.role] }}>{user?.role}</span>
           </div>
           <button className="btn-sm btn-secondary" onClick={handleLogout}
             style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -90,6 +100,10 @@ export default function Navbar() {
               <item.icon size={17} />{item.label}
             </NavLink>
           ))}
+          <div onClick={() => { navigate('/profile'); setMenuOpen(false); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 20px', fontSize: 15, color: 'var(--text2)', cursor: 'pointer' }}>
+            <UserCircle size={17} /> Mi perfil
+          </div>
         </div>
       )}
     </nav>
