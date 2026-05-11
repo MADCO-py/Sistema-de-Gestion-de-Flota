@@ -49,12 +49,12 @@ export default function Users() {
     : ['HOST', 'PILOT'];
 
   // Quién puede editar a quién
-  const canEdit = (target) => {
-    if (me?.id === target.id) return false; // No editarse a sí mismo desde aquí (usar Mi Perfil)
+const canEdit = (target) => {
+    if (me?.id === target.id) return false; // usar Mi Perfil para editarse uno mismo
     if (me?.role === 'ADMIN') return true; // ADMIN edita a todos
-    if (me?.role === 'HOST') return target.role === 'PILOT'; // HOST solo edita PILOTs
+    if (me?.role === 'HOST') return target.role !== 'ADMIN'; // HOST edita HOST y PILOT pero no ADMIN
     return false;
-  };
+  };;
 
   const canToggle = (target) => {
     if (me?.id === target.id) return false;

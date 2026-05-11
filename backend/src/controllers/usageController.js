@@ -1,6 +1,6 @@
 const pool = require('../db');
 const { log } = require('../utils/logger');
-const { uploadToR2, getPhotoUrl } = require('../utils/r2');
+const { uploadToR2 } = require('../utils/r2');
 const path = require('path');
 
 const SUSPICIOUS_KM_THRESHOLD = 500;
@@ -54,7 +54,6 @@ const uploadPhotos = async (req, res) => {
     );
     if (!usage.rows.length) return res.status(404).json({ error: 'Uso activo no encontrado' });
 
-    // Borrar fotos anteriores
     await pool.query('DELETE FROM usage_photos WHERE usage_id=$1', [usage_id]);
 
     const inserted = [];
@@ -62,10 +61,7 @@ const uploadPhotos = async (req, res) => {
       const side = file.fieldname;
       const ext = path.extname(file.originalname) || '.jpg';
       const r2Key = `${usage_id}_${side}_${Date.now()}${ext}`;
-
-      // Subir a R2
       await uploadToR2(file.path, r2Key);
-
       const { rows } = await pool.query(
         'INSERT INTO usage_photos (usage_id, side, filename) VALUES ($1,$2,$3) RETURNING *',
         [usage_id, side, r2Key]
@@ -96,16 +92,7 @@ const checkOut = async (req, res) => {
     if (req.user.role === 'PILOT' && usage.pilot_id !== pilot_id) { await client.query('ROLLBACK'); return res.status(403).json({ error: 'No puedes hacer checkout de este vehículo' }); }
     if (km_end <= usage.km_start) { await client.query('ROLLBACK'); return res.status(400).json({ error: `El km final (${km_end}) debe ser mayor al inicial (${usage.km_start})` }); }
 
-    if (req.user.role === 'PILOT') {
-      const photosRes = await client.query("SELECT side FROM usage_photos WHERE usage_id=$1", [usage_id]);
-      const sides = photosRes.rows.map(p => p.side);
-      const missing = ['front','back','left','right'].filter(s => !sides.includes(s));
-      if (missing.length > 0) {
-        await client.query('ROLLBACK');
-        const labels = { front:'Frente', back:'Atrás', left:'Izquierda', right:'Derecha' };
-        return res.status(400).json({ error: `Faltan fotos: ${missing.map(s => labels[s]).join(', ')}` });
-      }
-    }
+    // FOTOS OPCIONALES — ya no se bloquea el checkout si no hay fotos
 
     const kmDiff = km_end - usage.km_start;
     const suspicious = kmDiff > SUSPICIOUS_KM_THRESHOLD;
