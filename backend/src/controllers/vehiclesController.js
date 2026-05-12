@@ -73,18 +73,38 @@ const updateVehicle = async (req, res) => {
 };
 
 const deleteVehicle = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { rows } = await pool.query('SELECT status FROM vehicles WHERE id=$1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Vehículo no encontrado' });
     if (rows[0].status === 'in_use') return res.status(409).json({ error: 'No puedes eliminar un vehículo en uso' });
-    // Soft delete — marcar como inactivo en lugar de borrar
-    await pool.query("UPDATE vehicles SET status='maintenance', notes=CONCAT(COALESCE(notes,''), ' [ELIMINADO]') WHERE id=$1", [req.params.id]);
+
+    await client.query('BEGIN');
+
+    // Borrar en orden por foreign keys
+    // 1. Fotos de los usos del vehículo
+    await client.query(`
+      DELETE FROM usage_photos WHERE usage_id IN (
+        SELECT id FROM vehicle_usage WHERE vehicle_id=$1
+      )`, [req.params.id]);
+
+    // 2. Alertas del vehículo
+    await client.query('DELETE FROM alerts WHERE vehicle_id=$1', [req.params.id]);
+
+    // 3. Usos del vehículo
+    await client.query('DELETE FROM vehicle_usage WHERE vehicle_id=$1', [req.params.id]);
+
+    // 4. Finalmente el vehículo
+    await client.query('DELETE FROM vehicles WHERE id=$1', [req.params.id]);
+
+    await client.query('COMMIT');
     await log(req.user.id, 'DELETE_VEHICLE', 'vehicles', req.params.id, null, req.ip);
     res.json({ message: 'Vehículo eliminado' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('deleteVehicle error:', err.message);
     res.status(500).json({ error: 'Error al eliminar vehículo' });
-  }
+  } finally { client.release(); }
 };
 
 module.exports = { getVehicles, getVehicleById, createVehicle, updateVehicle, deleteVehicle };
