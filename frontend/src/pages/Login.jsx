@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Logo from '../components/common/Logo';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -61,9 +62,21 @@ export default function Login() {
               </div>
               <div className="form-group" style={{ marginBottom: error ? 8 : 20 }}>
                 <label>Contraseña</label>
-                <input type="password" placeholder="Tu contraseña" value={password}
-                  onChange={e => setPassword(e.target.value)} required
-                  style={{ fontSize: 16, padding: '12px 14px' }} />
+                <div style={{ position: 'relative' }}>
+                  <input id="login-password" type={showPassword ? 'text' : 'password'}
+                    placeholder="Tu contraseña" value={password}
+                    onChange={e => setPassword(e.target.value)} required
+                    autoComplete="current-password"
+                    style={{ fontSize: 16, padding: '12px 52px 12px 14px' }} />
+                  <button type="button"
+                    onClick={() => setShowPassword(visible => !visible)}
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    aria-controls="login-password"
+                    title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--text2)' }}>
+                    {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
+                  </button>
+                </div>
               </div>
               {error && (
                 <div style={{ background: 'var(--red-bg)', border: '1px solid var(--red)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 14, color: 'var(--red)', fontSize: 13 }}>
